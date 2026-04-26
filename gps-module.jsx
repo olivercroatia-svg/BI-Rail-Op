@@ -45,6 +45,66 @@ function genGpsLocos() {
 
 window.GPS_LOCOS = genGpsLocos();
 
+// === Stations for current/start/end (Croatian rail) ===
+const HR_STATIONS = [
+  "Zagreb GK", "Zagreb RK", "Sesvete", "Dugo Selo", "Vrbovec", "Križevci", "Koprivnica",
+  "Karlovac", "Ogulin", "Moravice", "Delnice", "Lokve", "Rijeka", "Šapjane", "Lupoglav",
+  "Pula", "Zadar", "Split", "Knin", "Šibenik", "Sisak", "Sunja", "Novska", "Slav. Brod",
+  "Vinkovci", "Tovarnik", "Osijek", "Beli Manastir", "Varaždin", "Čakovec", "Botovo",
+  "Savski Marof", "Volinja", "Drnje", "Borovo", "Erdut",
+];
+
+const WAGON_TYPES = [
+  { code: "Eas", desc: "Otvoreni teretni" },
+  { code: "Habbillns", desc: "Zatvoreni klizna vrata" },
+  { code: "Sgnss", desc: "Kontejner-platforma" },
+  { code: "Zaes", desc: "Kemikalije / cisterna" },
+  { code: "Falns", desc: "Saobitnik / rasuti teret" },
+  { code: "Rils", desc: "Plato za koturove" },
+  { code: "Rgs", desc: "Niska platforma" },
+  { code: "Tagnpps", desc: "Cisterna mineralna ulja" },
+];
+
+// Decorate locos with station/wagon mock data
+(function decorate() {
+  let s = 7;
+  const r = () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
+  window.GPS_LOCOS.forEach((l) => {
+    const startIdx = Math.floor(r() * HR_STATIONS.length);
+    let endIdx = Math.floor(r() * HR_STATIONS.length);
+    if (endIdx === startIdx) endIdx = (endIdx + 7) % HR_STATIONS.length;
+    let curIdx;
+    if (l.motion === "off") {
+      curIdx = startIdx;
+    } else {
+      curIdx = Math.floor(r() * HR_STATIONS.length);
+    }
+    l.startStation = HR_STATIONS[startIdx];
+    l.endStation = HR_STATIONS[endIdx];
+    l.currentStation = HR_STATIONS[curIdx];
+    // wagon list (skip when off and no train)
+    const wagonCount = l.motion === "off" ? 0 : 6 + Math.floor(r() * 18);
+    l.wagons = [];
+    for (let i = 0; i < wagonCount; i++) {
+      const t = WAGON_TYPES[Math.floor(r() * WAGON_TYPES.length)];
+      l.wagons.push({
+        no: `33 78 ${String(Math.floor(r() * 9000) + 1000)} ${String(Math.floor(r() * 900) + 100)}-${Math.floor(r() * 9)}`,
+        type: t.code,
+        desc: t.desc,
+        weight: (10 + Math.floor(r() * 60)) + " t",
+      });
+    }
+    // Documents attached to the train (no docs when off)
+    l.docs = l.motion === "off" ? [] : [
+      { name: `PTU-${l.trainNo}.pdf`, kind: "PTU", size: (120 + Math.floor(r() * 800)) + " kB", date: "26.04.2026." },
+      { name: `KVR-${l.id}.pdf`, kind: "KVR", size: (80 + Math.floor(r() * 300)) + " kB", date: "26.04.2026." },
+      { name: `Tovarni-list-${l.trainNo}.pdf`, kind: "CIM", size: (200 + Math.floor(r() * 500)) + " kB", date: "26.04.2026." },
+      { name: `Popis-vagona-${l.trainNo}.xlsx`, kind: "XLS", size: (40 + Math.floor(r() * 120)) + " kB", date: "26.04.2026." },
+      ...(r() > 0.5 ? [{ name: `Opasna-roba-RID-${l.trainNo}.pdf`, kind: "RID", size: (60 + Math.floor(r() * 200)) + " kB", date: "26.04.2026." }] : []),
+    ];
+  });
+})();
+
 // === Generate a route polyline + speed series for a selected loco ===
 function genRoute(seedId, periodHours = 12) {
   let s = 0;
@@ -433,6 +493,7 @@ const SpeedChart = ({ route, lang }) => {
 // === GPS Sub-sidebar (left of the module) ===
 const GPS_NAV = [
   { id: "administracija", iconName: "settings", labelHr: "Administracija", labelEn: "Administration" },
+  { id: "mapa-sve", iconName: "globe", labelHr: "Mapa sve", labelEn: "Map all" },
   { id: "mapa", iconName: "map", labelHr: "Mapa", labelEn: "Map" },
   { id: "izvjestaji", iconName: "chart", labelHr: "Izvještaji", labelEn: "Reports" },
   { id: "izlaz", iconName: "x", labelHr: "Izlaz", labelEn: "Exit" },
@@ -771,6 +832,11 @@ const GpsModule = ({ lang, t }) => {
           {routeLoco && route && <SpeedChart route={route} lang={lang} />}
         </div>
       </div>
+      <window.MapaSvePopup
+        open={active === "mapa-sve"}
+        lang={lang}
+        onClose={() => setActive("mapa")}
+      />
     </>
   );
 };

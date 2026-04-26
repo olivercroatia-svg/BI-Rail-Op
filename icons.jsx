@@ -97,6 +97,16 @@ const Icon = ({ name, size = 16, className = "", style = {} }) => {
       return <svg {...props}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>;
     case "moon":
       return <svg {...props}><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>;
+    case "download":
+      return <svg {...props}><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>;
+    case "expand":
+      return <svg {...props}><path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/></svg>;
+    case "minimize":
+      return <svg {...props}><path d="M9 3v6H3M21 9h-6V3M9 21v-6H3M15 21v-6h6"/></svg>;
+    case "file":
+      return <svg {...props}><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"/><path d="M14 3v6h6M9 13h6M9 17h6"/></svg>;
+    case "package":
+      return <svg {...props}><path d="m7.5 4.27 9 5.15M21 8 12 13 3 8M21 8v8a2 2 0 0 1-1 1.73L13 21a2 2 0 0 1-2 0L4 17.73A2 2 0 0 1 3 16V8M12 22V13"/></svg>;
     case "logo":
       // Original mark — abstract rail "RO" monogram with a track underneath
       return (
