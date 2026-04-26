@@ -81,6 +81,14 @@ const App = () => {
   const listPx2 = Math.round(remaining * listFrac);
   const editPx2 = remaining - listPx2;
 
+  // GPS module needs different proportions: narrower sidebar (sub-nav), wider map
+  const isGps = activeModule === "gpsNadzor";
+  const gpsSidebarW = 180;
+  const gpsListW = Math.max(340, Math.min(420, panelsRect.width * 0.28));
+  const gpsRemaining = Math.max(500, panelsRect.width - gpsSidebarW - 12 - gpsListW);
+  const gpsCols = `${gpsSidebarW}px 6px ${gpsListW}px 6px ${gpsRemaining}px`;
+  const defaultCols = `${sidebarW}px 6px ${listPx2}px 6px ${editPx2}px`;
+
   const onListSplitDown2 = (e) => {
     e.preventDefault();
     const start = e.clientX;
@@ -212,41 +220,47 @@ const App = () => {
         ref={bodyRef}
         className="body"
         style={{
-          gridTemplateColumns: `${sidebarW}px 6px ${listPx2}px 6px ${editPx2}px`,
+          gridTemplateColumns: isGps ? gpsCols : defaultCols,
         }}
       >
-        <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} t={t} lang={lang} />
+        {activeModule === "gpsNadzor" ? (
+          <GpsModule lang={lang} t={t} />
+        ) : (
+          <>
+            <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} t={t} lang={lang} />
 
-        <div
-          className="resizer"
-          onMouseDown={(e) => onSidebarDown(e, (ev) => ev.clientX)}
-          title={lang === "hr" ? "Promijeni širinu izbornika" : "Resize sidebar"}
-        />
+            <div
+              className="resizer"
+              onMouseDown={(e) => onSidebarDown(e, (ev) => ev.clientX)}
+              title={lang === "hr" ? "Promijeni širinu izbornika" : "Resize sidebar"}
+            />
 
-        <TaskList
-          tasks={tasks}
-          selectedId={selectedId}
-          setSelectedId={setSelectedId}
-          lang={lang}
-          t={t}
-          onNew={handleNew}
-          onDuplicate={handleDuplicate}
-        />
+            <TaskList
+              tasks={tasks}
+              selectedId={selectedId}
+              setSelectedId={setSelectedId}
+              lang={lang}
+              t={t}
+              onNew={handleNew}
+              onDuplicate={handleDuplicate}
+            />
 
-        <div
-          className="resizer"
-          onMouseDown={onListSplitDown2}
-          title={lang === "hr" ? "Promijeni omjer panela" : "Resize panels"}
-        />
+            <div
+              className="resizer"
+              onMouseDown={onListSplitDown2}
+              title={lang === "hr" ? "Promijeni omjer panela" : "Resize panels"}
+            />
 
-        <TaskEdit
-          task={selected}
-          lang={lang}
-          t={t}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          onClose={() => setSelectedId(null)}
-        />
+            <TaskEdit
+              task={selected}
+              lang={lang}
+              t={t}
+              onSave={handleSave}
+              onDelete={handleDelete}
+              onClose={() => setSelectedId(null)}
+            />
+          </>
+        )}
       </div>
 
       <div className="toast-wrap">
