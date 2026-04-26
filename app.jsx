@@ -40,7 +40,10 @@ const App = () => {
     "accent": "blue",
     "density": "regular",
     "layout": "split",
-    "theme": "light"
+    "theme": "light",
+    "insLegend": true,
+    "insMap": true,
+    "insPageSize": 100
   }/*EDITMODE-END*/;
   const [tw, setTw] = useTweaks(tweakDefaults);
 
@@ -53,6 +56,13 @@ const App = () => {
   const [tasks, setTasks] = useState(() => window.RAILOPS_DATA.TASKS);
   const [selectedId, setSelectedId] = useState(tasks[0] ? tasks[0].id : null);
   const selected = tasks.find((tk) => tk.id === selectedId) || null;
+
+  // Inspector tasks (Pregledači) — separate dataset & selection
+  const [insTasks, setInsTasks] = useState(() => window.RAILOPS_DATA.INSPECTOR_TASKS);
+  const [insSelectedId, setInsSelectedId] = useState(insTasks[0] ? insTasks[0].id : null);
+  const insSelected = insTasks.find((tk) => tk.id === insSelectedId) || null;
+
+  const isInspector = activeNav === "pregledaci";
 
   const [toasts, setToasts] = useState([]);
   const pushToast = (message, kind = "success") => {
@@ -155,6 +165,52 @@ const App = () => {
     pushToast(lang === "hr" ? "Zadatak kopiran" : "Task duplicated", "success");
   };
 
+  // === Inspector handlers ===
+  const handleInsSave = (draft) => {
+    setInsTasks((prev) => prev.map((tk) => (tk.id === draft.id ? draft : tk)));
+    pushToast(lang === "hr" ? "Zadatak spremljen" : "Task saved", "success");
+  };
+  const handleInsDelete = () => {
+    if (!insSelected) return;
+    setInsTasks((prev) => prev.filter((tk) => tk.id !== insSelected.id));
+    setInsSelectedId(null);
+    pushToast(lang === "hr" ? "Zadatak obrisan" : "Task deleted", "info");
+  };
+  const handleInsNew = () => {
+    const newId = Math.max(...insTasks.map(tk => tk.id)) + 1;
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    const ss = String(now.getSeconds()).padStart(2, "0");
+    const newTask = {
+      id: newId,
+      kontrolira: "pending",
+      status: "inProgress",
+      inspector: "",
+      workTypeIdx: 0,
+      trainNo: "",
+      station: "",
+      reportedAt: `26.04.2026. ${hh}:${mm}`,
+      reportedAtSort: parseInt(hh, 10) * 60 + parseInt(mm, 10),
+      description: "",
+      createdAt: `26.04.2026. ${hh}:${mm}:${ss}`,
+      createdAtCoords: "0,0,0",
+      notesCount: 0,
+      attachmentsCount: 0,
+    };
+    setInsTasks((prev) => [newTask, ...prev]);
+    setInsSelectedId(newId);
+    pushToast(lang === "hr" ? "Novi zadatak" : "New task", "success");
+  };
+  const handleInsDuplicate = () => {
+    if (!insSelected) return;
+    const newId = Math.max(...insTasks.map(tk => tk.id)) + 1;
+    const dup = { ...insSelected, id: newId, kontrolira: "pending", status: "inProgress" };
+    setInsTasks((prev) => [dup, ...prev]);
+    setInsSelectedId(newId);
+    pushToast(lang === "hr" ? "Zadatak kopiran" : "Task duplicated", "success");
+  };
+
   // Apply accent and density via document attributes
   useEffect(() => {
     const root = document.documentElement;
@@ -214,7 +270,7 @@ const App = () => {
         setLang={setLang}
         t={t}
       />
-      <SubBar activeModule={activeModule} activeNav={activeNav} lang={lang} t={t} tasks={tasks} />
+      <SubBar activeModule={activeModule} activeNav={activeNav} lang={lang} t={t} tasks={isInspector ? insTasks : tasks} />
 
       <div
         ref={bodyRef}
@@ -235,15 +291,29 @@ const App = () => {
               title={lang === "hr" ? "Promijeni širinu izbornika" : "Resize sidebar"}
             />
 
-            <TaskList
-              tasks={tasks}
-              selectedId={selectedId}
-              setSelectedId={setSelectedId}
-              lang={lang}
-              t={t}
-              onNew={handleNew}
-              onDuplicate={handleDuplicate}
-            />
+            {isInspector ? (
+              <InspectorList
+                tasks={insTasks}
+                selectedId={insSelectedId}
+                setSelectedId={setInsSelectedId}
+                lang={lang}
+                t={t}
+                onNew={handleInsNew}
+                onDuplicate={handleInsDuplicate}
+                pageSize={tw.insPageSize || 100}
+                showLegend={tw.insLegend !== false}
+              />
+            ) : (
+              <TaskList
+                tasks={tasks}
+                selectedId={selectedId}
+                setSelectedId={setSelectedId}
+                lang={lang}
+                t={t}
+                onNew={handleNew}
+                onDuplicate={handleDuplicate}
+              />
+            )}
 
             <div
               className="resizer"
@@ -251,14 +321,27 @@ const App = () => {
               title={lang === "hr" ? "Promijeni omjer panela" : "Resize panels"}
             />
 
-            <TaskEdit
-              task={selected}
-              lang={lang}
-              t={t}
-              onSave={handleSave}
-              onDelete={handleDelete}
-              onClose={() => setSelectedId(null)}
-            />
+            {isInspector ? (
+              <InspectorEdit
+                task={insSelected}
+                lang={lang}
+                t={t}
+                onSave={handleInsSave}
+                onDelete={handleInsDelete}
+                onDuplicate={handleInsDuplicate}
+                onClose={() => setInsSelectedId(null)}
+                mapVisible={tw.insMap !== false}
+              />
+            ) : (
+              <TaskEdit
+                task={selected}
+                lang={lang}
+                t={t}
+                onSave={handleSave}
+                onDelete={handleDelete}
+                onClose={() => setSelectedId(null)}
+              />
+            )}
           </>
         )}
       </div>
@@ -319,8 +402,32 @@ const App = () => {
             ]}
           />
         </TweakSection>
+        {isInspector && (
+          <TweakSection title={lang === "hr" ? "Pregledači" : "Inspectors"}>
+            <TweakToggle
+              label={lang === "hr" ? "Status legenda u listi" : "Status legend in list"}
+              value={tw.insLegend !== false}
+              onChange={(v) => setTw("insLegend", v)}
+            />
+            <TweakToggle
+              label={lang === "hr" ? "Mapa u edit panelu" : "Map in edit panel"}
+              value={tw.insMap !== false}
+              onChange={(v) => setTw("insMap", v)}
+            />
+            <TweakRadio
+              label={lang === "hr" ? "Redova po stranici" : "Rows per page"}
+              value={String(tw.insPageSize || 100)}
+              onChange={(v) => setTw("insPageSize", parseInt(v, 10))}
+              options={[
+                { value: "50", label: "50" },
+                { value: "100", label: "100" },
+                { value: "200", label: "200" },
+              ]}
+            />
+          </TweakSection>
+        )}
         <TweakSection title={lang === "hr" ? "Akcije" : "Actions"}>
-          <TweakButton onClick={handleNew}>
+          <TweakButton onClick={isInspector ? handleInsNew : handleNew}>
             {lang === "hr" ? "+ Kreiraj novi zadatak" : "+ Create new task"}
           </TweakButton>
           <TweakButton onClick={() => {

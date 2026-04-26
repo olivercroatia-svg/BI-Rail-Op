@@ -135,6 +135,82 @@
 }
 .map-legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
 
+/* OSM iframe — fills map-canvas, native zoom/pan */
+.map-iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: oklch(96% 0.02 200);
+}
+
+/* Marker chip strip — shown when 2+ locos selected, lets user focus one */
+.marker-strip {
+  position: absolute;
+  top: 60px;
+  right: 12px;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  z-index: 5;
+  max-height: calc(100% - 220px);
+  overflow-y: auto;
+}
+.marker-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--fg);
+  font-size: var(--text-sm);
+  width: 100%;
+  min-width: 0;
+  transition: background 0.12s, border-color 0.12s;
+}
+.marker-chip:hover { background: var(--bg-hover); }
+.marker-chip--active {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft-border);
+}
+.marker-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.marker-chip--moving .marker-chip__dot { background: oklch(58% 0.13 155); box-shadow: 0 0 0 3px oklch(58% 0.13 155 / 0.18); }
+.marker-chip--idle .marker-chip__dot { background: #f59e0b; box-shadow: 0 0 0 3px oklch(70% 0.18 70 / 0.18); }
+.marker-chip--off .marker-chip__dot { background: oklch(70% 0.008 250); }
+.marker-chip__id {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  color: var(--fg);
+  flex-shrink: 0;
+}
+.marker-chip__station {
+  color: var(--fg-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
 /* === Speed chart === */
 .speed-chart {
   background: var(--surface);

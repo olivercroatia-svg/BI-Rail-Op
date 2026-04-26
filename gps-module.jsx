@@ -65,6 +65,46 @@ const WAGON_TYPES = [
   { code: "Tagnpps", desc: "Cisterna mineralna ulja" },
 ];
 
+// Real Croatia lat/lng coordinates for stations (approximate, for OSM marker placement)
+const HR_STATION_COORDS = {
+  "Zagreb GK": [45.8048, 15.9783],
+  "Zagreb RK": [45.7842, 15.9550],
+  "Sesvete": [45.8311, 16.1124],
+  "Dugo Selo": [45.8086, 16.2353],
+  "Vrbovec": [45.8819, 16.4258],
+  "Križevci": [46.0258, 16.5453],
+  "Koprivnica": [46.1639, 16.8336],
+  "Karlovac": [45.4870, 15.5478],
+  "Ogulin": [45.2647, 15.2308],
+  "Moravice": [45.3275, 14.9061],
+  "Delnice": [45.4011, 14.7944],
+  "Lokve": [45.3786, 14.7411],
+  "Rijeka": [45.3271, 14.4422],
+  "Šapjane": [45.4753, 14.1817],
+  "Lupoglav": [45.3578, 14.0792],
+  "Pula": [44.8666, 13.8496],
+  "Zadar": [44.1194, 15.2314],
+  "Split": [43.5081, 16.4402],
+  "Knin": [44.0411, 16.1992],
+  "Šibenik": [43.7350, 15.8952],
+  "Sisak": [45.4661, 16.3781],
+  "Sunja": [45.3667, 16.5500],
+  "Novska": [45.3411, 16.9772],
+  "Slav. Brod": [45.1603, 18.0156],
+  "Vinkovci": [45.2886, 18.8050],
+  "Tovarnik": [45.1675, 19.1542],
+  "Osijek": [45.5550, 18.6953],
+  "Beli Manastir": [45.7700, 18.6000],
+  "Varaždin": [46.3050, 16.3361],
+  "Čakovec": [46.3892, 16.4339],
+  "Botovo": [46.2436, 16.9047],
+  "Savski Marof": [45.8625, 15.7211],
+  "Volinja": [45.1908, 16.5381],
+  "Drnje": [46.2206, 16.9233],
+  "Borovo": [45.3781, 18.9656],
+  "Erdut": [45.5247, 18.9619],
+};
+
 // Decorate locos with station/wagon mock data
 (function decorate() {
   let s = 7;
@@ -82,6 +122,10 @@ const WAGON_TYPES = [
     l.startStation = HR_STATIONS[startIdx];
     l.endStation = HR_STATIONS[endIdx];
     l.currentStation = HR_STATIONS[curIdx];
+    // Real lat/lng for OSM marker — based on currentStation with small jitter
+    const baseCoords = HR_STATION_COORDS[l.currentStation] || [45.8048, 15.9783];
+    l.lat = baseCoords[0] + (r() - 0.5) * 0.04;
+    l.lng = baseCoords[1] + (r() - 0.5) * 0.06;
     // wagon list (skip when off and no train)
     const wagonCount = l.motion === "off" ? 0 : 6 + Math.floor(r() * 18);
     l.wagons = [];
@@ -166,11 +210,8 @@ function genRoute(seedId, periodHours = 12) {
   };
 }
 
-// === Map component (custom SVG approximation of HR rail map) ===
-const RailMap = ({ markers, routeLoco, route, lang, onClearRoute }) => {
-  const wrapRef = useRefG(null);
-  const [hover, setHover] = useStateG(null); // { x, y, idx }
-
+// === Map component (real OpenStreetMap iframe with native zoom) ===
+const RailMap = ({ markers, routeLoco, route, lang, onClearRoute, focusId, setFocusId }) => {
   const hasMarkers = markers && markers.length > 0;
   const showRoute = !!route && !!routeLoco;
 
@@ -188,130 +229,86 @@ const RailMap = ({ markers, routeLoco, route, lang, onClearRoute }) => {
     );
   }
 
-  const polyD = showRoute ? route.points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x * 100} ${p.y * 100}`).join(" ") : "";
-  const start = showRoute ? route.points[0] : null;
-  const end = showRoute ? route.points[route.points.length - 1] : null;
+  // Decide which loco the iframe centers on
+  const focused = showRoute
+    ? routeLoco
+    : (markers.find(m => m.id === focusId) || markers[0]);
 
-  const motionColor = (m) => m === "moving" ? "oklch(58% 0.13 155)" : m === "idle" ? "#f59e0b" : "oklch(70% 0.008 250)";
+  // Compute bbox: when multiple markers, fit to all; otherwise small box around focused
+  let minLat, maxLat, minLng, maxLng;
+  if (!showRoute && markers.length > 1) {
+    minLat = Math.min(...markers.map(m => m.lat));
+    maxLat = Math.max(...markers.map(m => m.lat));
+    minLng = Math.min(...markers.map(m => m.lng));
+    maxLng = Math.max(...markers.map(m => m.lng));
+    // Pad bbox by 15%
+    const padLat = (maxLat - minLat) * 0.15 + 0.05;
+    const padLng = (maxLng - minLng) * 0.15 + 0.05;
+    minLat -= padLat; maxLat += padLat;
+    minLng -= padLng; maxLng += padLng;
+  } else {
+    const dy = 0.15, dx = 0.25;
+    minLat = focused.lat - dy; maxLat = focused.lat + dy;
+    minLng = focused.lng - dx; maxLng = focused.lng + dx;
+  }
+  const bbox = `${minLng},${minLat},${maxLng},${maxLat}`;
+  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${focused.lat},${focused.lng}`;
+  const mapLink = `https://www.openstreetmap.org/?mlat=${focused.lat}&mlon=${focused.lng}#map=11/${focused.lat}/${focused.lng}`;
 
   return (
-    <div className="map-canvas" ref={wrapRef}>
+    <div className="map-canvas">
       {/* Map controls */}
       <div className="map-toolbar">
         <div className="map-toolbar__title">
           <Icon name="map" size={13} />
           <span>{lang === "hr" ? "Karta · OpenStreetMap" : "Map · OpenStreetMap"}</span>
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
-          <button className="icon-btn" title={lang === "hr" ? "Sloj" : "Layer"}><Icon name="list" size={13} /></button>
-          <button className="icon-btn" title={lang === "hr" ? "Centriraj" : "Center"}><Icon name="gps" size={13} /></button>
-          <button className="icon-btn" title={lang === "hr" ? "Puni ekran" : "Fullscreen"}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/></svg>
-          </button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 4, pointerEvents: "auto" }}>
+          <a
+            className="icon-btn"
+            href={mapLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={lang === "hr" ? "Otvori u OpenStreetMapu" : "Open in OpenStreetMap"}
+            style={{ textDecoration: "none" }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3h7v7M10 14L21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
+          </a>
         </div>
       </div>
 
-      {/* SVG map background — abstract terrain, rivers, rail lines */}
-      <svg className="map-bg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
-        <defs>
-          <pattern id="grid" width="5" height="5" patternUnits="userSpaceOnUse">
-            <path d="M 5 0 L 0 0 0 5" fill="none" stroke="oklch(92% 0.01 200 / 0.4)" strokeWidth="0.1"/>
-          </pattern>
-          <linearGradient id="terrain" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="oklch(96% 0.02 145)"/>
-            <stop offset="100%" stopColor="oklch(94% 0.025 130)"/>
-          </linearGradient>
-        </defs>
-        <rect width="100" height="100" fill="url(#terrain)"/>
-        <rect width="100" height="100" fill="url(#grid)"/>
-        {/* Sea / Adriatic */}
-        <path d="M 0 60 Q 10 65 18 70 Q 25 78 30 92 L 30 100 L 0 100 Z" fill="oklch(92% 0.04 230)"/>
-        <path d="M 38 90 Q 45 92 52 95 L 52 100 L 38 100 Z" fill="oklch(92% 0.04 230)"/>
-        {/* Rivers */}
-        <path d="M 30 30 Q 50 38 70 35 Q 85 38 98 42" fill="none" stroke="oklch(85% 0.05 230)" strokeWidth="0.4"/>
-        <path d="M 55 42 Q 65 50 80 55 Q 90 58 100 60" fill="none" stroke="oklch(85% 0.05 230)" strokeWidth="0.3"/>
-        {/* Country / regions */}
-        <path d="M 5 35 Q 20 30 40 28 Q 60 25 80 30 Q 92 32 100 38 L 100 60 Q 92 65 80 64 Q 60 70 40 65 Q 20 60 5 55 Z" fill="oklch(95% 0.03 145 / 0.4)" stroke="oklch(82% 0.02 200)" strokeWidth="0.15"/>
-        {/* Rail network (background) */}
-        <g stroke="oklch(78% 0.012 250)" strokeWidth="0.25" fill="none" strokeDasharray="0.6 0.6" opacity="0.7">
-          <path d="M 55 42 L 48 55 L 32 62"/>
-          <path d="M 55 42 L 62 50 L 58 85"/>
-          <path d="M 55 42 L 82 55 L 88 42"/>
-          <path d="M 55 42 L 62 28"/>
-          <path d="M 55 42 L 42 78"/>
-          <path d="M 55 42 L 20 65"/>
-        </g>
-        {/* City dots */}
-        {[
-          { name: "Zagreb", x: 55, y: 42, big: true },
-          { name: "Rijeka", x: 32, y: 62 },
-          { name: "Split", x: 58, y: 85 },
-          { name: "Osijek", x: 88, y: 42 },
-          { name: "Slav. Brod", x: 82, y: 55 },
-          { name: "Karlovac", x: 48, y: 55 },
-          { name: "Varaždin", x: 62, y: 28 },
-          { name: "Sisak", x: 62, y: 50 },
-          { name: "Pula", x: 20, y: 65 },
-          { name: "Zadar", x: 42, y: 78 },
-        ].map((c) => (
-          <g key={c.name}>
-            <circle cx={c.x} cy={c.y} r={c.big ? 0.9 : 0.6} fill="oklch(60% 0.014 250)"/>
-            <text x={c.x + 1.2} y={c.y + 0.5} fontSize={c.big ? "1.6" : "1.3"} fill="oklch(35% 0.02 250)" fontFamily="Inter" fontWeight={c.big ? 600 : 400}>{c.name}</text>
-          </g>
-        ))}
-        {/* Route polyline — glow + stroke (only when single loco + route shown) */}
-        {showRoute && (
-          <>
-            <path d={polyD} fill="none" stroke="var(--accent)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" opacity="0.18"/>
-            <path d={polyD} fill="none" stroke="var(--accent)" strokeWidth="0.55" strokeLinecap="round" strokeLinejoin="round"/>
-          </>
-        )}
-        {/* Hover dot */}
-        {showRoute && hover && (
-          <circle cx={hover.x * 100} cy={hover.y * 100} r="0.9" fill="white" stroke="var(--accent)" strokeWidth="0.4"/>
-        )}
-        {/* Start marker */}
-        {showRoute && (
-          <g transform={`translate(${start.x * 100} ${start.y * 100})`}>
-            <circle r="1.6" fill="oklch(58% 0.13 155)"/>
-            <circle r="2.6" fill="none" stroke="oklch(58% 0.13 155)" strokeWidth="0.3" opacity="0.6"/>
-          </g>
-        )}
-        {/* End marker */}
-        {showRoute && (
-          <g transform={`translate(${end.x * 100} ${end.y * 100})`}>
-            <circle r="1.6" fill="oklch(58% 0.20 22)"/>
-            <circle r="2.6" fill="none" stroke="oklch(58% 0.20 22)" strokeWidth="0.3" opacity="0.6"/>
-          </g>
-        )}
-        {/* Multi-select markers (no route) */}
-        {!showRoute && hasMarkers && markers.map((m) => (
-          <g key={m.id} transform={`translate(${m.mapX * 100} ${m.mapY * 100})`}>
-            {m.motion === "moving" && (
-              <circle r="2.6" fill={motionColor(m.motion)} opacity="0.18">
-                <animate attributeName="r" from="1.6" to="3.6" dur="1.8s" repeatCount="indefinite"/>
-                <animate attributeName="opacity" from="0.32" to="0" dur="1.8s" repeatCount="indefinite"/>
-              </circle>
-            )}
-            <circle r="1.2" fill="white" stroke={motionColor(m.motion)} strokeWidth="0.4"/>
-            <circle r="0.6" fill={motionColor(m.motion)}/>
-            {markers.length <= 8 && (
-              <text x="1.5" y="0.5" fontSize="1.3" fill="oklch(35% 0.02 250)" fontFamily="Inter" fontWeight="500">{m.id}</text>
-            )}
-          </g>
-        ))}
-        {/* Loco current position (single, with route) */}
-        {showRoute && (
-          <g transform={`translate(${routeLoco.mapX * 100} ${routeLoco.mapY * 100})`}>
-            {routeLoco.motion === "moving" && <circle r="3.5" fill="var(--accent)" opacity="0.18">
-              <animate attributeName="r" from="2" to="5" dur="1.6s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" from="0.4" to="0" dur="1.6s" repeatCount="indefinite"/>
-            </circle>}
-            <circle r="1.4" fill="white" stroke="var(--accent)" strokeWidth="0.5"/>
-            <circle r="0.7" fill="var(--accent)"/>
-          </g>
-        )}
-      </svg>
+      {/* OSM iframe — native scroll-zoom & pan */}
+      <iframe
+        key={`${bbox}|${focused.id}`}
+        title="Rail map"
+        className="map-iframe"
+        src={mapSrc}
+        loading="lazy"
+      />
+
+      {/* Marker chip strip — when multiple selected, lets user pick which to focus */}
+      {!showRoute && hasMarkers && markers.length > 1 && (
+        <div className="marker-strip scrollable-x">
+          {markers.map((m) => {
+            const active = m.id === focused.id;
+            const motionLabel = m.motion === "moving" ? (lang === "hr" ? "Kreće se" : "Moving")
+              : m.motion === "idle" ? (lang === "hr" ? "Stoji" : "Idle")
+              : (lang === "hr" ? "Ugašena" : "Off");
+            return (
+              <button
+                key={m.id}
+                className={`marker-chip marker-chip--${m.motion} ${active ? "marker-chip--active" : ""}`}
+                onClick={() => setFocusId(m.id)}
+                title={`${m.id} · ${motionLabel} · ${m.currentStation}`}
+              >
+                <span className="marker-chip__dot" />
+                <span className="marker-chip__id">{m.id}</span>
+                <span className="marker-chip__station">{m.currentStation}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Floating info card — route mode (single loco) */}
       {showRoute && (
@@ -402,9 +399,9 @@ const RailMap = ({ markers, routeLoco, route, lang, onClearRoute }) => {
       {/* Legend */}
       {showRoute ? (
         <div className="map-legend">
-          <span><span className="dot" style={{ background: "oklch(58% 0.13 155)" }} />{lang === "hr" ? "Početak" : "Start"} {route.startCity.name}</span>
-          <span><span className="dot" style={{ background: "oklch(58% 0.20 22)" }} />{lang === "hr" ? "Kraj" : "End"} {route.endCity.name}</span>
-          <span><span className="dot" style={{ background: "var(--accent)" }} />{lang === "hr" ? "Trenutna pozicija" : "Current position"}</span>
+          <span><span className="dot" style={{ background: "oklch(58% 0.13 155)" }} />{lang === "hr" ? "Polazak" : "From"} {routeLoco.startStation}</span>
+          <span><span className="dot" style={{ background: "oklch(58% 0.20 22)" }} />{lang === "hr" ? "Cilj" : "To"} {routeLoco.endStation}</span>
+          <span><span className="dot" style={{ background: "var(--accent)" }} />{lang === "hr" ? "Sad" : "Now"} {routeLoco.currentStation}</span>
         </div>
       ) : hasMarkers ? (
         <div className="map-legend">
@@ -768,6 +765,7 @@ const GpsModule = ({ lang, t }) => {
   const [active, setActive] = useStateG("mapa");
   const [selectedIds, setSelectedIds] = useStateG(() => new Set([window.GPS_LOCOS[0].id]));
   const [routeId, setRouteId] = useStateG(null); // null = no route shown
+  const [focusId, setFocusId] = useStateG(null); // map focus when multi-selected
   const [period, setPeriod] = useStateG({
     startDate: "26.04.2026.", startTime: "00:00",
     endDate: "26.04.2026.", endTime: "23:59",
@@ -782,14 +780,17 @@ const GpsModule = ({ lang, t }) => {
     });
     // Selecting/deselecting clears route view
     setRouteId(null);
+    setFocusId(id);
   };
   const selectAll = (ids) => {
     setSelectedIds(new Set(ids));
     setRouteId(null);
+    setFocusId(ids[0] || null);
   };
   const clearSelected = () => {
     setSelectedIds(new Set());
     setRouteId(null);
+    setFocusId(null);
   };
   const onShowRoute = (id) => {
     if (id) setRouteId(id);
@@ -828,6 +829,8 @@ const GpsModule = ({ lang, t }) => {
             route={route}
             lang={lang}
             onClearRoute={onClearRoute}
+            focusId={focusId}
+            setFocusId={setFocusId}
           />
           {routeLoco && route && <SpeedChart route={route} lang={lang} />}
         </div>

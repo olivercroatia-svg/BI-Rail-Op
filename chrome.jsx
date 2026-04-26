@@ -59,6 +59,7 @@ const SubBar = ({ activeModule, activeNav, lang, t, tasks }) => {
     tasks.forEach((tk) => { c[tk.status] = (c[tk.status] || 0) + 1; });
     return c;
   }, [tasks]);
+  const isInspector = activeNav === "pregledaci";
 
   return (
     <div className="subbar">
@@ -71,22 +72,41 @@ const SubBar = ({ activeModule, activeNav, lang, t, tasks }) => {
         <strong>{t.nav[activeNav] || activeNav}</strong>
       </div>
       <div className="subbar__chips">
-        <span className="chip-stat">
-          <span className="chip-stat__dot" style={{ background: "var(--info)" }} />
-          {lang === "hr" ? "Otvoreni" : "Open"} <strong>{counts.open}</strong>
-        </span>
-        <span className="chip-stat">
-          <span className="chip-stat__dot" style={{ background: "#f59e0b" }} />
-          {lang === "hr" ? "U tijeku" : "In progress"} <strong>{counts.inProgress}</strong>
-        </span>
-        <span className="chip-stat">
-          <span className="chip-stat__dot" style={{ background: "#10b981" }} />
-          {lang === "hr" ? "Završeni" : "Completed"} <strong>{counts.completed}</strong>
-        </span>
-        <span className="chip-stat">
-          <span className="chip-stat__dot" style={{ background: "#f43f5e" }} />
-          {lang === "hr" ? "Problemi" : "Issues"} <strong>{counts.issue}</strong>
-        </span>
+        {isInspector ? (
+          <>
+            <span className="chip-stat">
+              <span className="chip-stat__dot" style={{ background: "oklch(62% 0.15 150)" }} />
+              {lang === "hr" ? "Završeni" : "Completed"} <strong>{counts.completed}</strong>
+            </span>
+            <span className="chip-stat">
+              <span className="chip-stat__dot" style={{ background: "oklch(58% 0.16 245)" }} />
+              {lang === "hr" ? "U tijeku" : "In progress"} <strong>{counts.inProgress}</strong>
+            </span>
+            <span className="chip-stat">
+              <span className="chip-stat__dot" style={{ background: "oklch(56% 0.20 25)" }} />
+              {lang === "hr" ? "Problemi" : "Issues"} <strong>{counts.issue}</strong>
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="chip-stat">
+              <span className="chip-stat__dot" style={{ background: "var(--info)" }} />
+              {lang === "hr" ? "Otvoreni" : "Open"} <strong>{counts.open}</strong>
+            </span>
+            <span className="chip-stat">
+              <span className="chip-stat__dot" style={{ background: "#f59e0b" }} />
+              {lang === "hr" ? "U tijeku" : "In progress"} <strong>{counts.inProgress}</strong>
+            </span>
+            <span className="chip-stat">
+              <span className="chip-stat__dot" style={{ background: "#10b981" }} />
+              {lang === "hr" ? "Završeni" : "Completed"} <strong>{counts.completed}</strong>
+            </span>
+            <span className="chip-stat">
+              <span className="chip-stat__dot" style={{ background: "#f43f5e" }} />
+              {lang === "hr" ? "Problemi" : "Issues"} <strong>{counts.issue}</strong>
+            </span>
+          </>
+        )}
         <span className="chip-stat" style={{ fontWeight: 500 }}>
           <Icon name="calendar" size={12} style={{ color: "var(--fg-subtle)" }} />
           26.04.2026

@@ -101,6 +101,10 @@ const Icon = ({ name, size = 16, className = "", style = {} }) => {
       return <svg {...props}><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>;
     case "expand":
       return <svg {...props}><path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/></svg>;
+    case "maximize":
+      return <svg {...props}><path d="M4 4h6M4 4v6M20 4h-6M20 4v6M4 20h6M4 20v-6M20 20h-6M20 20v-6"/></svg>;
+    case "map-pin":
+      return <svg {...props}><path d="M12 22s7-7.5 7-13a7 7 0 0 0-14 0c0 5.5 7 13 7 13Z"/><circle cx="12" cy="9" r="2.5"/></svg>;
     case "minimize":
       return <svg {...props}><path d="M9 3v6H3M21 9h-6V3M9 21v-6H3M15 21v-6h6"/></svg>;
     case "file":

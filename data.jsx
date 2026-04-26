@@ -363,8 +363,101 @@ function genTasks(seed = 1) {
 
 const SERIES = ["1141", "1142", "1143", "2062", "2132", "6193"];
 
+// === Inspectors (Pregledači) — separate role from drivers ===
+const INSPECTORS = [
+  "Carević Siniša", "Avgustinović Josip", "Palijan Ivica", "Posavec Zdenko",
+  "Mandić Dragan", "Posavec Zdenko", "Avgustinović Josip", "Ivošević Ilija",
+  "Zajec Marijan", "Posavec Zdenko", "Komlenović Josip", "Vinković Antun",
+  "Vidović Ivan", "Borović Ibrahim", "Carević Siniša", "Posavec Zdenko",
+  "Ivošević Ilija", "Borović Ibrahim", "Magdić Tomislav", "Šokčević Ivan",
+  "Jurić Zlatko", "Pavičić Marko", "Šimić Antun", "Vukelić Igor",
+];
+
+// === Inspector work types — different from drivers ===
+const INSPECTOR_WORK_TYPES_HR = [
+  "Skraćena proba kočenja vlaka",
+  "Potpuna proba kočenja vlaka",
+  "Tehnički pregled vlaka",
+  "Pojedinačni pregled",
+  "Manevriranje",
+  "Korištenje službenog vozila",
+  "Formiranje vlaka",
+  "Ostalo",
+];
+const INSPECTOR_WORK_TYPES_EN = [
+  "Brake test (short)",
+  "Brake test (full)",
+  "Technical train inspection",
+  "Individual inspection",
+  "Yard maneuver",
+  "Service vehicle use",
+  "Train formation",
+  "Other",
+];
+
+// === Stations for inspector tasks ===
+const INSPECTOR_STATIONS = [
+  "Zagreb GK", "Rijeka", "Slavonski Brod", "Vinkovci", "Varaždin", "Bakar",
+  "Škrljevo", "Dobova", "Moravice", "Šid", "Knin", "Osijek", "Borovo", "Erdut",
+];
+
+// === Inspector tasks generator — Kontrolira (red/yellow) + Status (green/blue/red) two-dot system ===
+function genInspectorTasks(seed = 11) {
+  const rand = (() => {
+    let s = seed;
+    return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+  })();
+  const pick = (arr) => arr[Math.floor(rand() * arr.length)];
+  // Kontrolira:  pending=red dot, ok=yellow dot
+  // Status: complete=green, in-progress=blue, issue=red
+  const kontrols = ["pending", "ok"]; // pending = red, ok = yellow
+  const statuses = ["completed", "inProgress", "issue"]; // green/blue/red
+
+  const list = [];
+  let id = 1036131;
+  for (let i = 0; i < 220; i++) {
+    const wtIdx = Math.floor(rand() * INSPECTOR_WORK_TYPES_HR.length);
+    const inspector = pick(INSPECTORS);
+    const trainNo = rand() > 0.18 ? String(Math.floor(rand() * 90000) + 10000) : "";
+    const station = pick(INSPECTOR_STATIONS);
+    const hh = Math.floor(rand() * 24);
+    const mm = Math.floor(rand() * 60);
+    const day = 26;
+    const description = rand() > 0.55 ? "Bez izvanrednih napomena. Sva ispitivanja u redu." : (rand() > 0.4 ? "Manja korekcija na vagonu br. 7 — provjereno." : "");
+    list.push({
+      id,
+      kontrolira: pick(kontrols),
+      status: weightedStatus(rand, statuses),
+      inspector,
+      workTypeIdx: wtIdx,
+      trainNo,
+      station,
+      reportedAt: `26.04.2026. ${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`,
+      reportedAtSort: hh * 60 + mm,
+      description,
+      // Vrijeme + Mjesto kreiranja
+      createdAt: `26.04.2026. ${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(Math.floor(rand() * 60)).padStart(2, "0")}`,
+      createdAtCoords: rand() > 0.35
+        ? `${(45.7 + rand() * 0.6).toFixed(4)}, ${(15.9 + rand() * 0.4).toFixed(4)}`
+        : "0,0,0",
+      notesCount: Math.floor(rand() * 3),
+      attachmentsCount: Math.floor(rand() * 2),
+    });
+    id -= (1 + Math.floor(rand() * 3)) * 2; // mimic original screenshot's id stepping
+  }
+  return list;
+}
+function weightedStatus(rand, statuses) {
+  const r = rand();
+  if (r < 0.6) return "completed";
+  if (r < 0.85) return "inProgress";
+  return "issue";
+}
+
 window.RAILOPS_DATA = {
   I18N, MODULES_HR, NAV_GROUPS, STATUS_DEFS,
   WORK_TYPES_HR, WORK_TYPES_EN, DRIVERS, ROUTES, SERIES,
+  INSPECTORS, INSPECTOR_WORK_TYPES_HR, INSPECTOR_WORK_TYPES_EN, INSPECTOR_STATIONS,
   TASKS: genTasks(7),
+  INSPECTOR_TASKS: genInspectorTasks(11),
 };
