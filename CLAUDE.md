@@ -21,6 +21,8 @@ open index.html
 
 There is no lint, no typecheck, no tests. Verification is visual.
 
+**Claude may start this dev server in background mode (`run_in_background: true`) for verification purposes** — it's a read-only static server on a known dev port and is the only way to confirm changes render correctly. After starting, `curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8765/` to confirm it's up; if it already returns 200, do not start a second instance.
+
 ## Deploy
 
 - GitHub: `olivercroatia-svg/BI-Rail-Op` (origin `main`)
