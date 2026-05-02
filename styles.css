@@ -1240,3 +1240,74 @@ input, select, textarea { font: inherit; }
 /* Density tweaks for inspector legend */
 [data-density="compact"] .ins-legend { font-size: 10px; gap: 8px; }
 [data-density="airy"] .table--inspector td { padding: 12px 14px; }
+
+/* ── Na smjeni panel ────────────────────────────────────────── */
+.ns-panel {
+  grid-column: 3 / -1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ns-table {
+  width: 100%;
+  table-layout: auto;
+}
+
+.ns-table th {
+  white-space: nowrap;
+}
+
+.ns-table td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+/* Group header row */
+.ns-group-row td {
+  padding: 5px var(--pad-x);
+  background: oklch(95.5% 0.008 250);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  user-select: none;
+}
+
+.ns-group-row td strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.ns-group-count {
+  margin-left: 8px;
+  color: var(--fg-subtle);
+  font-weight: 400;
+}
+
+.ns-group-toggle {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 10px;
+  color: var(--fg-faint);
+  vertical-align: middle;
+}
+
+/* Data rows */
+.ns-data-row td {
+  padding-top: 0;
+  padding-bottom: 0;
+  height: var(--row-h);
+  line-height: var(--row-h);
+}
+
+.ns-data-row:hover td {
+  background: var(--accent-soft);
+}
+
+/* Compact / airy overrides */
+[data-density="compact"] .ns-group-row td { padding: 3px 10px; }
+[data-density="airy"] .ns-group-row td { padding: 8px 18px; }

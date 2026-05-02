@@ -1,4 +1,34 @@
-// Edit panel — task details with tabs (details / notes / attachments / history)
+// Edit panel — task details with tabs (details / notes / attachments / history / position)
+
+const STATUS_Z_OPTIONS = ["U redu", "Kasni", "Zaustavljen", "Na odmoru", "Na putu", "Čeka signal", "U kolodvoru", "Izvan mreže"];
+
+function genDriverPosHistory(task) {
+  if (!task) return [];
+  const seed = (task.id || 1) * 31;
+  const rand = (() => { let s = seed; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; })();
+  const baseLat = 45.4 + rand() * 0.8;
+  const baseLng = 15.5 + rand() * 2.0;
+  const count = 4 + Math.floor(rand() * 4);
+  const hours = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+  const startHour = hours[Math.floor(rand() * hours.length)];
+  const entries = [];
+  for (let i = 0; i < count; i++) {
+    const hh = String((startHour + i) % 24).padStart(2, "0");
+    const mm = String(Math.floor(rand() * 60)).padStart(2, "0");
+    const ss = String(Math.floor(rand() * 60)).padStart(2, "0");
+    const lat = (baseLat + (rand() - 0.5) * 0.2).toFixed(4);
+    const lng = (baseLng + (rand() - 0.5) * 0.3).toFixed(4);
+    entries.push({
+      time: `26.04.2026. ${hh}:${mm}:${ss}`,
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      coords: `${lat}, ${lng}`,
+      acc: Math.floor(rand() * 15 + 3),
+      statusZ: STATUS_Z_OPTIONS[Math.floor(rand() * STATUS_Z_OPTIONS.length)],
+    });
+  }
+  return entries;
+}
 
 const SAMPLE_NOTES = [
   { author: "M. Horvat", role: "Voditelj smjene", time: "09:42", text: "Pojačati nadzor pri ulazu u kolodvor — radovi na peronu 3.", initials: "MH" },
@@ -15,6 +45,121 @@ const SAMPLE_HISTORY = [
   { who: "Oliver Krilić", when: "26.04.2026 09:42", action: "dodijelio strojovođu" },
   { who: "Auto-sustav", when: "26.04.2026 09:30", action: "zadatak generiran iz rasporeda RD-2026-04-26-B" },
 ];
+
+const PozicijaTab = ({ draft, lang }) => {
+  const posHistory = React.useMemo(() => genDriverPosHistory(draft), [draft && draft.id]);
+  const [selPos, setSelPos] = React.useState(() => posHistory[0] || null);
+
+  React.useEffect(() => { setSelPos(posHistory[0] || null); }, [draft && draft.id]);
+
+  const lat = selPos ? selPos.lat : 45.8;
+  const lng = selPos ? selPos.lng : 15.97;
+  const dx = 0.012, dy = 0.008;
+  const bbox = `${lng - dx},${lat - dy},${lng + dx},${lat + dy}`;
+  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
+  const mapLink = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`;
+
+  return (
+    <div>
+      <div className="edit-section">
+        <h4 className="edit-section__title">
+          <span>{lang === "hr" ? "Odabrana pozicija" : "Selected position"}</span>
+          <span className="edit-section__title-line" />
+        </h4>
+        <div className="field-grid">
+          <label className="field-label">{lang === "hr" ? "Strojovođa" : "Driver"}</label>
+          <div className="field field--mono field--readonly">
+            <input value={draft.driver || "—"} readOnly />
+          </div>
+          <label className="field-label">{lang === "hr" ? "Br. vlaka" : "Train no."}</label>
+          <div className="field field--mono field--readonly">
+            <input value={draft.trainNo || "—"} readOnly />
+          </div>
+          <label className="field-label">{lang === "hr" ? "Datum / vrijeme" : "Date / time"}</label>
+          <div className="field field--mono field--readonly">
+            <Icon name="calendar" size={13} style={{ color: "var(--fg-subtle)", marginRight: 6 }} />
+            <input value={selPos ? selPos.time : "—"} readOnly />
+          </div>
+          <label className="field-label">{lang === "hr" ? "Koordinate" : "Coordinates"}</label>
+          <div className="field field--mono field--readonly">
+            <Icon name="map-pin" size={13} style={{ color: "var(--fg-subtle)", marginRight: 6 }} />
+            <input value={selPos ? selPos.coords : "—"} readOnly />
+          </div>
+          <label className="field-label">{lang === "hr" ? "Točnost (m)" : "Accuracy (m)"}</label>
+          <div className="field field--mono field--readonly">
+            <input value={selPos ? `± ${selPos.acc} m` : "—"} readOnly />
+          </div>
+          <label className="field-label">Status</label>
+          <div className="field field--readonly">
+            <input value={selPos ? selPos.statusZ : "—"} readOnly />
+          </div>
+        </div>
+        <div className="ins-map" style={{ marginTop: 10 }}>
+          <div className="ins-map__chrome">
+            <div className="ins-map__tabs">
+              <button className="ins-map__tab ins-map__tab--active">Map</button>
+              <button className="ins-map__tab">Satellite</button>
+            </div>
+            <a className="ins-map__expand" href={mapLink} target="_blank" rel="noopener noreferrer"
+              title={lang === "hr" ? "Otvori u OpenStreetMapu" : "Open in OpenStreetMap"}>
+              <Icon name="maximize" size={12} />
+            </a>
+          </div>
+          {selPos ? (
+            <iframe key={mapSrc} title="Position map" className="ins-map__iframe" src={mapSrc} loading="lazy" />
+          ) : (
+            <div className="ins-map__empty">
+              <Icon name="map-pin" size={20} />
+              <div style={{ marginTop: 8 }}>{lang === "hr" ? "Nema zabilježene pozicije" : "No position recorded"}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="edit-section">
+        <h4 className="edit-section__title">
+          <span>{lang === "hr" ? "Povijest pozicija" : "Position history"}</span>
+          <span className="edit-section__title-line" />
+        </h4>
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {posHistory.map((p, i) => {
+            const active = selPos && selPos.time === p.time;
+            return (
+              <div
+                key={i}
+                onClick={() => setSelPos(p)}
+                style={{
+                  display: "flex", gap: 10, padding: "9px 10px", borderRadius: 6,
+                  cursor: "pointer", marginBottom: 2,
+                  background: active ? "var(--accent-soft)" : "transparent",
+                  border: `1px solid ${active ? "var(--accent-soft-border)" : "transparent"}`,
+                }}
+              >
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: active ? "var(--accent)" : "var(--border-strong)", marginTop: 5, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: active ? "var(--accent)" : "var(--fg-muted)", fontWeight: 500 }}>{p.time}</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: "var(--fg-subtle)" }}>± {p.acc} m</span>
+                  </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--fg-subtle)", marginTop: 2 }}>{p.coords}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: "var(--fg-faint)", marginTop: 1 }}>{draft.driver || "—"} · #{draft.id} · Status: {p.statusZ}</div>
+                </div>
+                <div style={{ fontSize: "var(--text-xs)", color: active ? "var(--accent)" : "var(--fg-faint)", alignSelf: "center", flexShrink: 0 }}>
+                  <Icon name="map-pin" size={11} />
+                </div>
+              </div>
+            );
+          })}
+          {posHistory.length === 0 && (
+            <div style={{ padding: "20px 0", textAlign: "center", color: "var(--fg-faint)", fontSize: "var(--text-sm)" }}>
+              {lang === "hr" ? "Nema zabilježenih pozicija" : "No positions recorded"}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const TaskEdit = ({ task, lang, t, onSave, onDelete, onClose }) => {
   const [tab, setTab] = React.useState("details");
@@ -103,6 +248,10 @@ const TaskEdit = ({ task, lang, t, onSave, onDelete, onClose }) => {
         <button className={`edit-tab ${tab === "history" ? "edit-tab--active" : ""}`} onClick={() => setTab("history")}>
           <Icon name="history" size={12} />
           <span>{t.edit.tabs.history}</span>
+        </button>
+        <button className={`edit-tab ${tab === "pozicija" ? "edit-tab--active" : ""}`} onClick={() => setTab("pozicija")}>
+          <Icon name="map-pin" size={12} />
+          <span>{lang === "hr" ? "Pozicija" : "Position"}</span>
         </button>
       </div>
 
@@ -375,6 +524,10 @@ const TaskEdit = ({ task, lang, t, onSave, onDelete, onClose }) => {
             </div>
           </div>
         )}
+
+        {tab === "pozicija" && (
+          <PozicijaTab draft={draft} lang={lang} />
+        )}
       </div>
 
       <div className="edit-footer">
@@ -391,4 +544,4 @@ const TaskEdit = ({ task, lang, t, onSave, onDelete, onClose }) => {
   );
 };
 
-Object.assign(window, { TaskEdit });
+Object.assign(window, { TaskEdit, PozicijaTab, STATUS_Z_OPTIONS });

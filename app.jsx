@@ -63,6 +63,7 @@ const App = () => {
   const insSelected = insTasks.find((tk) => tk.id === insSelectedId) || null;
 
   const isInspector = activeNav === "pregledaci";
+  const isNaSmjeni = activeNav === "naSmjeni";
 
   const [toasts, setToasts] = useState([]);
   const pushToast = (message, kind = "success") => {
@@ -98,6 +99,8 @@ const App = () => {
   const gpsRemaining = Math.max(500, panelsRect.width - gpsSidebarW - 12 - gpsListW);
   const gpsCols = `${gpsSidebarW}px 6px ${gpsListW}px 6px ${gpsRemaining}px`;
   const defaultCols = `${sidebarW}px 6px ${listPx2}px 6px ${editPx2}px`;
+  // Na smjeni: sidebar + resizer + full-width table (no edit panel)
+  const naSmjeniCols = `${sidebarW}px 6px 1fr`;
 
   const onListSplitDown2 = (e) => {
     e.preventDefault();
@@ -276,7 +279,7 @@ const App = () => {
         ref={bodyRef}
         className="body"
         style={{
-          gridTemplateColumns: isGps ? gpsCols : defaultCols,
+          gridTemplateColumns: isGps ? gpsCols : isNaSmjeni ? naSmjeniCols : defaultCols,
         }}
       >
         {activeModule === "gpsNadzor" ? (
@@ -291,56 +294,62 @@ const App = () => {
               title={lang === "hr" ? "Promijeni širinu izbornika" : "Resize sidebar"}
             />
 
-            {isInspector ? (
-              <InspectorList
-                tasks={insTasks}
-                selectedId={insSelectedId}
-                setSelectedId={setInsSelectedId}
-                lang={lang}
-                t={t}
-                onNew={handleInsNew}
-                onDuplicate={handleInsDuplicate}
-                pageSize={tw.insPageSize || 100}
-                showLegend={tw.insLegend !== false}
-              />
+            {isNaSmjeni ? (
+              <NaSmjeniPanel lang={lang} t={t} />
+            ) : isInspector ? (
+              <>
+                <InspectorList
+                  tasks={insTasks}
+                  selectedId={insSelectedId}
+                  setSelectedId={setInsSelectedId}
+                  lang={lang}
+                  t={t}
+                  onNew={handleInsNew}
+                  onDuplicate={handleInsDuplicate}
+                  pageSize={tw.insPageSize || 100}
+                  showLegend={tw.insLegend !== false}
+                />
+                <div
+                  className="resizer"
+                  onMouseDown={onListSplitDown2}
+                  title={lang === "hr" ? "Promijeni omjer panela" : "Resize panels"}
+                />
+                <InspectorEdit
+                  task={insSelected}
+                  lang={lang}
+                  t={t}
+                  onSave={handleInsSave}
+                  onDelete={handleInsDelete}
+                  onDuplicate={handleInsDuplicate}
+                  onClose={() => setInsSelectedId(null)}
+                  mapVisible={tw.insMap !== false}
+                />
+              </>
             ) : (
-              <TaskList
-                tasks={tasks}
-                selectedId={selectedId}
-                setSelectedId={setSelectedId}
-                lang={lang}
-                t={t}
-                onNew={handleNew}
-                onDuplicate={handleDuplicate}
-              />
-            )}
-
-            <div
-              className="resizer"
-              onMouseDown={onListSplitDown2}
-              title={lang === "hr" ? "Promijeni omjer panela" : "Resize panels"}
-            />
-
-            {isInspector ? (
-              <InspectorEdit
-                task={insSelected}
-                lang={lang}
-                t={t}
-                onSave={handleInsSave}
-                onDelete={handleInsDelete}
-                onDuplicate={handleInsDuplicate}
-                onClose={() => setInsSelectedId(null)}
-                mapVisible={tw.insMap !== false}
-              />
-            ) : (
-              <TaskEdit
-                task={selected}
-                lang={lang}
-                t={t}
-                onSave={handleSave}
-                onDelete={handleDelete}
-                onClose={() => setSelectedId(null)}
-              />
+              <>
+                <TaskList
+                  tasks={tasks}
+                  selectedId={selectedId}
+                  setSelectedId={setSelectedId}
+                  lang={lang}
+                  t={t}
+                  onNew={handleNew}
+                  onDuplicate={handleDuplicate}
+                />
+                <div
+                  className="resizer"
+                  onMouseDown={onListSplitDown2}
+                  title={lang === "hr" ? "Promijeni omjer panela" : "Resize panels"}
+                />
+                <TaskEdit
+                  task={selected}
+                  lang={lang}
+                  t={t}
+                  onSave={handleSave}
+                  onDelete={handleDelete}
+                  onClose={() => setSelectedId(null)}
+                />
+              </>
             )}
           </>
         )}

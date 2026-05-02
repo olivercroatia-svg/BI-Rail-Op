@@ -2,6 +2,155 @@
 // Mirrors the screenshot: Pregledač / Vrsta rada / Opis / Kolodvor / Vrijeme / Status,
 // "Manje <<" toggle that hides Vrijeme + Mjesto kreiranja and the OSM map.
 
+function genInsPosHistory(task) {
+  if (!task) return [];
+  const seed = (task.id || 1) * 53;
+  const rand = (() => { let s = seed; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; })();
+  const parts = (task.createdAtCoords || "").split(",").map((s) => parseFloat(s.trim()));
+  const baseLat = parts.length >= 2 && !isNaN(parts[0]) ? parts[0] : 45.5 + rand() * 0.5;
+  const baseLng = parts.length >= 2 && !isNaN(parts[1]) ? parts[1] : 15.8 + rand() * 1.5;
+  const count = 3 + Math.floor(rand() * 4);
+  const reportedParts = (task.reportedAt || "26.04.2026. 20:00").split(" ");
+  const timePart = reportedParts[1] || "20:00";
+  const [startHH, startMM] = timePart.split(":").map(Number);
+  const entries = [];
+  for (let i = 0; i < count; i++) {
+    const totalMin = startHH * 60 + startMM - i * (5 + Math.floor(rand() * 15));
+    const hh = String(Math.floor((totalMin % 1440 + 1440) % 1440 / 60)).padStart(2, "0");
+    const mm = String((totalMin % 60 + 60) % 60).padStart(2, "0");
+    const ss = String(Math.floor(rand() * 60)).padStart(2, "0");
+    const lat = (baseLat + (rand() - 0.5) * 0.05).toFixed(4);
+    const lng = (baseLng + (rand() - 0.5) * 0.08).toFixed(4);
+    entries.push({
+      time: `26.04.2026. ${hh}:${mm}:${ss}`,
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      coords: `${lat}, ${lng}`,
+      acc: Math.floor(rand() * 12 + 2),
+      statusZ: (window.STATUS_Z_OPTIONS || ["U redu", "Kasni", "Zaustavljen", "U kolodvoru", "Na putu", "Čeka signal"])[Math.floor(rand() * 6)],
+    });
+  }
+  return entries;
+}
+
+const InsPozicijaSection = ({ draft, lang, mapVisible }) => {
+  const posHistory = React.useMemo(() => genInsPosHistory(draft), [draft && draft.id]);
+  const [selPos, setSelPos] = React.useState(() => posHistory[0] || null);
+  React.useEffect(() => { setSelPos(posHistory[0] || null); }, [draft && draft.id]);
+
+  const baseCoords = (() => {
+    const parts = (draft.createdAtCoords || "").split(",").map((s) => parseFloat(s.trim()));
+    if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) return { lat: parts[0], lng: parts[1] };
+    return null;
+  })();
+
+  const lat = selPos ? selPos.lat : baseCoords ? baseCoords.lat : 45.812;
+  const lng = selPos ? selPos.lng : baseCoords ? baseCoords.lng : 15.978;
+  const dx = 0.012, dy = 0.008;
+  const bbox = `${lng - dx},${lat - dy},${lng + dx},${lat + dy}`;
+  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
+  const mapLink = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`;
+  const hasCoords = !!(selPos || baseCoords);
+
+  return (
+    <div className="edit-section">
+      <h4 className="edit-section__title">
+        <span>{lang === "hr" ? "Podaci o kreiranju" : "Creation metadata"}</span>
+        <span className="edit-section__title-line" />
+      </h4>
+      <div className="field-grid">
+        <label className="field-label">{lang === "hr" ? "Vrijeme kreiranja zadatka" : "Created at"}</label>
+        <div className="field field--mono field--readonly">
+          <Icon name="calendar" size={13} style={{ color: "var(--fg-subtle)", marginRight: 6 }} />
+          <input value={draft.createdAt || ""} readOnly />
+        </div>
+        <label className="field-label">{lang === "hr" ? "Mjesto kreiranja zadatka" : "Created at (location)"}</label>
+        <div className="field field--mono field--readonly">
+          <Icon name="map-pin" size={13} style={{ color: "var(--fg-subtle)", marginRight: 6 }} />
+          <input value={selPos ? selPos.coords : draft.createdAtCoords || "0,0,0"} readOnly />
+        </div>
+        {selPos && (
+          <>
+            <label className="field-label">{lang === "hr" ? "Točnost" : "Accuracy"}</label>
+            <div className="field field--mono field--readonly">
+              <input value={`± ${selPos.acc} m`} readOnly />
+            </div>
+            <label className="field-label">Status</label>
+            <div className="field field--readonly">
+              <input value={selPos.statusZ || "—"} readOnly />
+            </div>
+          </>
+        )}
+      </div>
+
+      {mapVisible && (
+        <div className="ins-map">
+          <div className="ins-map__chrome">
+            <div className="ins-map__tabs">
+              <button className="ins-map__tab ins-map__tab--active">Map</button>
+              <button className="ins-map__tab">Satellite</button>
+            </div>
+            <a className="ins-map__expand" href={mapLink} target="_blank" rel="noopener noreferrer"
+              title={lang === "hr" ? "Otvori u OpenStreetMapu" : "Open in OpenStreetMap"}>
+              <Icon name="maximize" size={12} />
+            </a>
+          </div>
+          {hasCoords ? (
+            <iframe key={mapSrc} title="Task location map" className="ins-map__iframe" src={mapSrc} loading="lazy" />
+          ) : (
+            <div className="ins-map__empty">
+              <Icon name="map-pin" size={20} />
+              <div style={{ marginTop: 8 }}>
+                {lang === "hr" ? "Lokacija nije zabilježena (0,0,0)" : "Location not captured (0,0,0)"}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <h4 className="edit-section__title" style={{ marginTop: 16 }}>
+        <span>{lang === "hr" ? "Povijest pozicija" : "Position history"}</span>
+        <span className="edit-section__title-line" />
+      </h4>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        {posHistory.map((p, i) => {
+          const active = selPos && selPos.time === p.time;
+          return (
+            <div
+              key={i}
+              onClick={() => setSelPos(p)}
+              style={{
+                display: "flex", gap: 10, padding: "9px 10px", borderRadius: 6,
+                cursor: "pointer", marginBottom: 2,
+                background: active ? "var(--accent-soft)" : "transparent",
+                border: `1px solid ${active ? "var(--accent-soft-border)" : "transparent"}`,
+              }}
+            >
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: active ? "var(--accent)" : "var(--border-strong)", marginTop: 5, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: active ? "var(--accent)" : "var(--fg-muted)", fontWeight: 500 }}>{p.time}</span>
+                  <span style={{ fontSize: "var(--text-xs)", color: "var(--fg-subtle)" }}>± {p.acc} m</span>
+                </div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--fg-subtle)", marginTop: 2 }}>{p.coords}</div>
+                <div style={{ fontSize: "var(--text-xs)", color: "var(--fg-faint)", marginTop: 1 }}>{draft.inspector || "—"} · #{draft.id} · Status: {p.statusZ}</div>
+              </div>
+              <div style={{ fontSize: "var(--text-xs)", color: active ? "var(--accent)" : "var(--fg-faint)", alignSelf: "center", flexShrink: 0 }}>
+                <Icon name="map-pin" size={11} />
+              </div>
+            </div>
+          );
+        })}
+        {posHistory.length === 0 && (
+          <div style={{ padding: "20px 0", textAlign: "center", color: "var(--fg-faint)", fontSize: "var(--text-sm)" }}>
+            {lang === "hr" ? "Nema zabilježenih pozicija" : "No positions recorded"}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const INS_SAMPLE_NOTES = [
   { author: "M. Horvat", role: "Voditelj smjene", time: "21:35", text: "Provjeriti zračnice na vagonu 7 prije ponovnog spajanja.", initials: "MH" },
   { author: "Z. Posavec", role: "Pregledač", time: "21:28", text: "Skraćena proba kočenja izvedena u redu, vlak spreman za polazak.", initials: "ZP" },
@@ -64,24 +213,6 @@ const InspectorEdit = ({ task, lang, t, onSave, onDelete, onClose, onDuplicate, 
     issue: lang === "hr" ? "Problem" : "Issue",
   };
   const STATUS_OPTIONS = ["completed", "inProgress", "issue"];
-
-  // OSM iframe — try to extract a coordinate from createdAtCoords
-  const coords = (() => {
-    if (!draft.createdAtCoords || draft.createdAtCoords === "0,0,0") return null;
-    const parts = draft.createdAtCoords.split(",").map((s) => parseFloat(s.trim()));
-    if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-      return { lat: parts[0], lng: parts[1] };
-    }
-    return null;
-  })();
-
-  // Default to a Zagreb-ish view if no coords
-  const lat = coords ? coords.lat : 45.812;
-  const lng = coords ? coords.lng : 15.978;
-  const dx = 0.012, dy = 0.008;
-  const bbox = `${lng - dx},${lat - dy},${lng + dx},${lat + dy}`;
-  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
-  const mapLink = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`;
 
   return (
     <div className="panel">
@@ -297,66 +428,7 @@ const InspectorEdit = ({ task, lang, t, onSave, onDelete, onClose, onDuplicate, 
             </div>
 
             {!collapsed && (
-              <div className="edit-section">
-                <h4 className="edit-section__title">
-                  <span>{lang === "hr" ? "Podaci o kreiranju" : "Creation metadata"}</span>
-                  <span className="edit-section__title-line" />
-                </h4>
-                <div className="field-grid">
-                  <label className="field-label">
-                    {lang === "hr" ? "Vrijeme kreiranja zadatka" : "Created at"}
-                  </label>
-                  <div className="field field--mono field--readonly">
-                    <Icon name="calendar" size={13} style={{ color: "var(--fg-subtle)", marginRight: 6 }} />
-                    <input value={draft.createdAt || ""} readOnly />
-                  </div>
-
-                  <label className="field-label">
-                    {lang === "hr" ? "Mjesto kreiranja zadatka" : "Created at (location)"}
-                  </label>
-                  <div className="field field--mono field--readonly">
-                    <Icon name="map-pin" size={13} style={{ color: "var(--fg-subtle)", marginRight: 6 }} />
-                    <input value={draft.createdAtCoords || "0,0,0"} readOnly />
-                  </div>
-                </div>
-
-                {mapVisible && (
-                  <div className="ins-map">
-                    <div className="ins-map__chrome">
-                      <div className="ins-map__tabs">
-                        <button className="ins-map__tab ins-map__tab--active">Map</button>
-                        <button className="ins-map__tab">Satellite</button>
-                      </div>
-                      <a
-                        className="ins-map__expand"
-                        href={mapLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={lang === "hr" ? "Otvori u OpenStreetMapu" : "Open in OpenStreetMap"}
-                      >
-                        <Icon name="maximize" size={12} />
-                      </a>
-                    </div>
-                    {coords ? (
-                      <iframe
-                        title="Task location map"
-                        className="ins-map__iframe"
-                        src={mapSrc}
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="ins-map__empty">
-                        <Icon name="map-pin" size={20} />
-                        <div style={{ marginTop: 8 }}>
-                          {lang === "hr"
-                            ? "Lokacija nije zabilježena (0,0,0)"
-                            : "Location not captured (0,0,0)"}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <InsPozicijaSection draft={draft} lang={lang} mapVisible={mapVisible} />
             )}
           </>
         )}

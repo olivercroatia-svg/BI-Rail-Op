@@ -454,10 +454,71 @@ function weightedStatus(rand, statuses) {
   return "issue";
 }
 
+// === Na smjeni — open shifts data ===
+// Columns: Djelatnik, Domicil, Početak smjene, Radno mjesto, Vrsta rada, Broj vlaka,
+//          Lokomotiva, Vrijeme javljanja, Vrijeme početka zadatka, Vrijeme završetka zadatka
+
+const NA_SMJENI_RADNA_MJESTA = ["Strojovođa", "Vlakovođa", "Pregledač", "Transportni k..."];
+const NA_SMJENI_VRSTE_RADA = [
+  "Vožnja vlaka", "Reži vožnja", "Priprema", "Manevriranje",
+  "Formiranje vlaka", "Tehnički pregled vlaka...", "Razno",
+  "Potpuna proba kočenja...",
+];
+
+const NA_SMJENI_RAW = [
+  // Karlovac (2)
+  { djelatnik: "Magličić Dario",   domicil: "Karlovac",   pocetakSmjene: "02.05.2026. 07:00", radnoMjesto: "Strojovođa", vrstaRada: "Vožnja vlaka",                vrijemeJavljanja: "02.05.2026. 12:00", vrijemePocetka: "02.05.2026. 13:01", vrijemeZavrsetka: "",                  brojVlaka: "81224",   lokomotiva: "7193-614" },
+  { djelatnik: "Orešković Dražen", domicil: "Karlovac",   pocetakSmjene: "02.05.2026. 05:00", radnoMjesto: "Strojovođa", vrstaRada: "Reži vožnja",                vrijemeJavljanja: "02.05.2026. 11:38", vrijemePocetka: "02.05.2026. 11:40", vrijemeZavrsetka: "02.05.2026. 12:43", brojVlaka: "4201",    lokomotiva: "" },
+  // Knin (3)
+  { djelatnik: "Komar Damir",      domicil: "Knin",        pocetakSmjene: "02.05.2026. 07:00", radnoMjesto: "Strojovođa", vrstaRada: "Priprema",                   vrijemeJavljanja: "02.05.2026. 07:31", vrijemePocetka: "02.05.2026. 07:31", vrijemeZavrsetka: "",                  brojVlaka: "00000",   lokomotiva: "" },
+  { djelatnik: "Kardov Darko",     domicil: "Knin",        pocetakSmjene: "02.05.2026. 07:00", radnoMjesto: "Strojovođa", vrstaRada: "",                           vrijemeJavljanja: "",                  vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+  { djelatnik: "Alduk Miljenko",   domicil: "Knin",        pocetakSmjene: "02.05.2026. 07:00", radnoMjesto: "Strojovođa", vrstaRada: "",                           vrijemeJavljanja: "",                  vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+  // Koprivnica (16)
+  { djelatnik: "Zubčić Nikola",    domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 13:25", radnoMjesto: "Strojovođa", vrstaRada: "Vožnja vlaka",                vrijemeJavljanja: "02.05.2026. 16:10", vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "48796",   lokomotiva: "1141-320" },
+  { djelatnik: "Jukić Željko",     domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 10:55", radnoMjesto: "Strojovođa", vrstaRada: "Vožnja vlaka",                vrijemeJavljanja: "02.05.2026. 16:10", vrijemePocetka: "02.05.2026. 12:10", vrijemeZavrsetka: "",                  brojVlaka: "45990",   lokomotiva: "6193-101" },
+  { djelatnik: "Kokša Dragulin",   domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 07:50", radnoMjesto: "Transportni k...", vrstaRada: "",                      vrijemeJavljanja: "",                  vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+  { djelatnik: "Bogović Miljenko", domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 07:01", radnoMjesto: "Strojovođa", vrstaRada: "",                           vrijemeJavljanja: "",                  vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+  { djelatnik: "Negovec Ivan",     domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 07:00", radnoMjesto: "Vlakovođa",  vrstaRada: "Manevriranje",               vrijemeJavljanja: "02.05.2026. 13:07", vrijemePocetka: "02.05.2026. 14:13", vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "2041-108" },
+  { djelatnik: "Blažeković Hrvoje",domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 07:00", radnoMjesto: "Strojovođa", vrstaRada: "",                           vrijemeJavljanja: "",                  vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+  { djelatnik: "Strmečki Viktor",  domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 06:55", radnoMjesto: "Vlakovođa",  vrstaRada: "Formiranje vlaka",            vrijemeJavljanja: "02.05.2026. 09:27", vrijemePocetka: "02.05.2026. 09:28", vrijemeZavrsetka: "02.05.2026. 09:28", brojVlaka: "69700",   lokomotiva: "" },
+  { djelatnik: "Cikač Renato",     domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 06:53", radnoMjesto: "Pregledač",  vrstaRada: "Tehnički pregled vlaka...",   vrijemeJavljanja: "02.05.2026. 08:44", vrijemePocetka: "02.05.2026. 08:45", vrijemeZavrsetka: "02.05.2026. 09:17", brojVlaka: "47998",   lokomotiva: "" },
+  { djelatnik: "Jadanić Roberto",  domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 06:45", radnoMjesto: "Strojovođa", vrstaRada: "Razno",                       vrijemeJavljanja: "02.05.2026. 13:45", vrijemePocetka: "02.05.2026. 13:55", vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+  { djelatnik: "Barulek Darko",    domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 06:15", radnoMjesto: "Strojovođa", vrstaRada: "",                           vrijemeJavljanja: "",                  vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+  { djelatnik: "Barešić Borde",    domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 06:15", radnoMjesto: "Strojovođa", vrstaRada: "Reži vožnja",                vrijemeJavljanja: "02.05.2026. 13:45", vrijemePocetka: "02.05.2026. 13:45", vrijemeZavrsetka: "02.05.2026. 14:20", brojVlaka: "981",     lokomotiva: "" },
+  { djelatnik: "Vuković Tomislav", domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 05:40", radnoMjesto: "Strojovođa", vrstaRada: "Vožnja vlaka",                vrijemeJavljanja: "02.05.2026. 16:00", vrijemePocetka: "02.05.2026. 08:45", vrijemeZavrsetka: "02.05.2026. 08:52", brojVlaka: "69700",   lokomotiva: "6193-087" },
+  { djelatnik: "Račan Marlin",     domicil: "Koprivnica",  pocetakSmjene: "02.05.2026. 04:01", radnoMjesto: "Strojovođa", vrstaRada: "Reži vožnja",                vrijemeJavljanja: "02.05.2026. 08:43", vrijemePocetka: "02.05.2026. 08:20", vrijemeZavrsetka: "02.05.2026. 08:40", brojVlaka: "ZG4874JH",lokomotiva: "" },
+  { djelatnik: "Grahovac Božidar", domicil: "Koprivnica",  pocetakSmjene: "01.05.2026. 06:49", radnoMjesto: "Vlakovođa",  vrstaRada: "",                           vrijemeJavljanja: "",                  vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+  { djelatnik: "Pehnec Zvjezdan",  domicil: "Koprivnica",  pocetakSmjene: "30.04.2026. 07:07", radnoMjesto: "Vlakovođa",  vrstaRada: "",                           vrijemeJavljanja: "",                  vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+  { djelatnik: "Blažotić Luka",    domicil: "Koprivnica",  pocetakSmjene: "25.04.2026. 19:18", radnoMjesto: "Pregledač",  vrstaRada: "",                           vrijemeJavljanja: "",                  vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+  // Kutina (1)
+  { djelatnik: "Malivuk Neven",    domicil: "Kutina",      pocetakSmjene: "02.05.2026. 07:52", radnoMjesto: "Pregledač",  vrstaRada: "Potpuna proba kočenja...",    vrijemeJavljanja: "02.05.2026. 10:35", vrijemePocetka: "02.05.2026. 10:35", vrijemeZavrsetka: "02.05.2026. 11:07", brojVlaka: "81224",   lokomotiva: "" },
+  // Zagreb (8)
+  { djelatnik: "Horvat Damir",     domicil: "Zagreb",      pocetakSmjene: "02.05.2026. 07:00", radnoMjesto: "Strojovođa", vrstaRada: "Vožnja vlaka",                vrijemeJavljanja: "02.05.2026. 09:15", vrijemePocetka: "02.05.2026. 09:20", vrijemeZavrsetka: "",                  brojVlaka: "12345",   lokomotiva: "2062-112" },
+  { djelatnik: "Kovač Petar",      domicil: "Zagreb",      pocetakSmjene: "02.05.2026. 07:00", radnoMjesto: "Strojovođa", vrstaRada: "Reži vožnja",                vrijemeJavljanja: "02.05.2026. 08:50", vrijemePocetka: "02.05.2026. 08:55", vrijemeZavrsetka: "02.05.2026. 09:40", brojVlaka: "87001",   lokomotiva: "" },
+  { djelatnik: "Marić Stjepan",    domicil: "Zagreb",      pocetakSmjene: "02.05.2026. 06:30", radnoMjesto: "Strojovođa", vrstaRada: "Vožnja vlaka",                vrijemeJavljanja: "02.05.2026. 07:45", vrijemePocetka: "02.05.2026. 07:50", vrijemeZavrsetka: "",                  brojVlaka: "23456",   lokomotiva: "1141-205" },
+  { djelatnik: "Jurić Tomislav",   domicil: "Zagreb",      pocetakSmjene: "02.05.2026. 06:00", radnoMjesto: "Strojovođa", vrstaRada: "",                           vrijemeJavljanja: "",                  vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+  { djelatnik: "Babić Ante",       domicil: "Zagreb",      pocetakSmjene: "02.05.2026. 05:45", radnoMjesto: "Vlakovođa",  vrstaRada: "Formiranje vlaka",            vrijemeJavljanja: "02.05.2026. 06:30", vrijemePocetka: "02.05.2026. 06:35", vrijemeZavrsetka: "02.05.2026. 07:10", brojVlaka: "34567",   lokomotiva: "" },
+  { djelatnik: "Novak Franjo",     domicil: "Zagreb",      pocetakSmjene: "02.05.2026. 05:00", radnoMjesto: "Strojovođa", vrstaRada: "Vožnja vlaka",                vrijemeJavljanja: "02.05.2026. 06:00", vrijemePocetka: "02.05.2026. 06:05", vrijemeZavrsetka: "",                  brojVlaka: "45678",   lokomotiva: "6193-333" },
+  { djelatnik: "Petrović Vladimir",domicil: "Zagreb",      pocetakSmjene: "02.05.2026. 04:30", radnoMjesto: "Strojovođa", vrstaRada: "Reži vožnja",                vrijemeJavljanja: "02.05.2026. 05:10", vrijemePocetka: "02.05.2026. 05:15", vrijemeZavrsetka: "02.05.2026. 05:55", brojVlaka: "56789",   lokomotiva: "" },
+  { djelatnik: "Lukavec Ruben",    domicil: "Zagreb",      pocetakSmjene: "02.05.2026. 04:00", radnoMjesto: "Pregledač",  vrstaRada: "Tehnički pregled vlaka...",   vrijemeJavljanja: "02.05.2026. 04:45", vrijemePocetka: "02.05.2026. 04:50", vrijemeZavrsetka: "02.05.2026. 05:20", brojVlaka: "67890",   lokomotiva: "" },
+  // Rijeka (5)
+  { djelatnik: "Salopek Milan",    domicil: "Rijeka",      pocetakSmjene: "02.05.2026. 08:00", radnoMjesto: "Strojovođa", vrstaRada: "Vožnja vlaka",                vrijemeJavljanja: "02.05.2026. 10:00", vrijemePocetka: "02.05.2026. 10:05", vrijemeZavrsetka: "",                  brojVlaka: "78901",   lokomotiva: "2132-045" },
+  { djelatnik: "Karan Nedeljko",   domicil: "Rijeka",      pocetakSmjene: "02.05.2026. 07:30", radnoMjesto: "Strojovođa", vrstaRada: "Vožnja vlaka",                vrijemeJavljanja: "02.05.2026. 09:30", vrijemePocetka: "02.05.2026. 09:35", vrijemeZavrsetka: "",                  brojVlaka: "89012",   lokomotiva: "1143-078" },
+  { djelatnik: "Pezić Ivan",       domicil: "Rijeka",      pocetakSmjene: "02.05.2026. 07:00", radnoMjesto: "Strojovođa", vrstaRada: "Priprema",                   vrijemeJavljanja: "02.05.2026. 07:10", vrijemePocetka: "02.05.2026. 07:15", vrijemeZavrsetka: "02.05.2026. 07:50", brojVlaka: "",        lokomotiva: "" },
+  { djelatnik: "Rajković Ivan",    domicil: "Rijeka",      pocetakSmjene: "02.05.2026. 06:45", radnoMjesto: "Vlakovođa",  vrstaRada: "Manevriranje",               vrijemeJavljanja: "02.05.2026. 08:20", vrijemePocetka: "02.05.2026. 08:25", vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "1142-210" },
+  { djelatnik: "Stanišić Željko",  domicil: "Rijeka",      pocetakSmjene: "02.05.2026. 06:00", radnoMjesto: "Strojovođa", vrstaRada: "",                           vrijemeJavljanja: "",                  vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+  // Osijek (4)
+  { djelatnik: "Bobek Kazimir",    domicil: "Osijek",      pocetakSmjene: "02.05.2026. 07:00", radnoMjesto: "Strojovođa", vrstaRada: "Vožnja vlaka",                vrijemeJavljanja: "02.05.2026. 09:00", vrijemePocetka: "02.05.2026. 09:05", vrijemeZavrsetka: "",                  brojVlaka: "90123",   lokomotiva: "2062-301" },
+  { djelatnik: "Bilić Tomislav",   domicil: "Osijek",      pocetakSmjene: "02.05.2026. 06:30", radnoMjesto: "Strojovođa", vrstaRada: "Reži vožnja",                vrijemeJavljanja: "02.05.2026. 08:00", vrijemePocetka: "02.05.2026. 08:05", vrijemeZavrsetka: "02.05.2026. 08:55", brojVlaka: "01234",   lokomotiva: "" },
+  { djelatnik: "Sabolović Tomo",   domicil: "Osijek",      pocetakSmjene: "02.05.2026. 06:00", radnoMjesto: "Vlakovođa",  vrstaRada: "Formiranje vlaka",            vrijemeJavljanja: "02.05.2026. 07:00", vrijemePocetka: "02.05.2026. 07:05", vrijemeZavrsetka: "02.05.2026. 07:45", brojVlaka: "11235",   lokomotiva: "" },
+  { djelatnik: "Čembić Tomislav",  domicil: "Osijek",      pocetakSmjene: "02.05.2026. 05:30", radnoMjesto: "Strojovođa", vrstaRada: "",                           vrijemeJavljanja: "",                  vrijemePocetka: "",                   vrijemeZavrsetka: "",                  brojVlaka: "",        lokomotiva: "" },
+];
+
 window.RAILOPS_DATA = {
   I18N, MODULES_HR, NAV_GROUPS, STATUS_DEFS,
   WORK_TYPES_HR, WORK_TYPES_EN, DRIVERS, ROUTES, SERIES,
   INSPECTORS, INSPECTOR_WORK_TYPES_HR, INSPECTOR_WORK_TYPES_EN, INSPECTOR_STATIONS,
   TASKS: genTasks(7),
   INSPECTOR_TASKS: genInspectorTasks(11),
+  NA_SMJENI: NA_SMJENI_RAW,
 };
